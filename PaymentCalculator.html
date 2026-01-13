@@ -1,0 +1,389 @@
+<div id="kv-buyer-calc"></div>
+
+<style>
+#kv-buyer-calc{font-family:Arial,Helvetica,sans-serif;color:#1f2937}
+#kv-buyer-calc *{box-sizing:border-box}
+#kv-buyer-calc .wrap{max-width:1100px;margin:auto;padding:16px}
+#kv-buyer-calc .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;box-shadow:0 6px 18px rgba(0,0,0,.06)}
+#kv-buyer-calc h2{margin:0 0 12px;font-size:18px;font-weight:800}
+
+/* Layout */
+.grid{display:grid;grid-template-columns:1.05fr .95fr;gap:16px}
+@media(max-width:900px){
+  #kv-buyer-calc .wrap{padding:12px}
+  #kv-buyer-calc .card{padding:14px}
+  .grid{grid-template-columns:1fr}
+}
+
+.inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:600px){
+  .inputs{grid-template-columns:1fr}
+  #kv-buyer-calc h2{font-size:16px}
+  input, select{padding:12px;font-size:16px}
+}
+
+label{font-size:12px;font-weight:700;margin-bottom:5px;display:block}
+input, select{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:10px;font-size:14px;background:#fff}
+
+.actions{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap}
+button{padding:11px 14px;border:none;border-radius:12px;font-weight:800;cursor:pointer}
+.compute{background:#2563eb;color:#fff}
+.reset{background:#f3f4f6}
+
+.results{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.results{grid-template-columns:1fr}}
+
+.resultCard{border:1px solid #e5e7eb;border-radius:14px;padding:12px;text-align:center}
+.resultTitle{font-weight:800;margin-bottom:8px}
+.bigNum{font-size:24px;font-weight:900;margin-top:6px}
+.legend{margin-top:8px;text-align:left}
+
+/* Legend with color keys */
+.legend-item{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:13px;
+  margin:6px 0;
+  gap:10px;
+}
+.legend-left{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+.legend-color{
+  width:12px;
+  height:12px;
+  border-radius:3px;
+  flex-shrink:0;
+  border:1px solid rgba(0,0,0,.08);
+}
+.legend-label{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.legend-val{white-space:nowrap}
+
+/* ✅ Force perfect circles */
+canvas{
+  width:160px;
+  height:160px;
+  display:block;
+  margin:0 auto;
+}
+@media(max-width:700px){
+  canvas{width:150px;height:150px}
+}
+
+.disclaimer{
+  margin-top:12px;
+  font-size:11px;
+  line-height:1.35;
+  color:#6b7280;
+}
+</style>
+
+<script>
+(function(){
+  const el=document.getElementById("kv-buyer-calc");
+
+  /* ✅ Reset defaults requested */
+  const DEFAULTS = {
+    price: 400000,
+    downPct: 20,
+    rate: 6.125,
+    term: 30,
+    taxes: 0,
+    insurance: 0,
+    hoa: 0,
+    concessionsPct: 0,
+    brokerPct: 3
+  };
+
+  /* Color maps (must match pie slices + legend) */
+  const MONTHLY_COLORS = {
+    pi: "#3b82f6",
+    taxes: "#22c55e",
+    insurance: "#86efac",
+    pmi: "#f59e0b",
+    hoa: "#a16207"
+  };
+
+  const CLOSE_COLORS = {
+    down: "#3b82f6",
+    closing: "#f59e0b",
+    broker: "#22c55e",
+    concessions: "#ef4444"
+  };
+
+  el.innerHTML = `
+  <div class="wrap">
+    <div class="card">
+      <div class="grid">
+
+        <div>
+          <h2>Buyer Payment & Closing Cost Estimator</h2>
+
+          <div class="inputs">
+            <div><label>Home Price ($)</label><input class="currency" id="price" type="text" inputmode="numeric"></div>
+            <div><label>Down Payment (%)</label><input id="downPct" type="number" inputmode="decimal" value="${DEFAULTS.downPct}"></div>
+
+            <div><label>Interest Rate (%)</label><input id="rate" type="number" inputmode="decimal" value="${DEFAULTS.rate}"></div>
+            <div>
+              <label>Loan Term (Years)</label>
+              <select id="term">
+                <option value="15">15</option>
+                <option value="30" selected>30</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+
+            <div><label>Annual Property Taxes ($)</label><input class="currency" id="taxes" type="text" inputmode="numeric"></div>
+            <div><label>Annual Hazard Insurance ($)</label><input class="currency" id="insurance" type="text" inputmode="numeric"></div>
+
+            <div><label>Monthly HOA ($)</label><input class="currency" id="hoa" type="text" inputmode="numeric"></div>
+            <div><label>Seller Concessions (% of price)</label><input id="concessionsPct" type="number" inputmode="decimal" value="${DEFAULTS.concessionsPct}"></div>
+
+            <div><label>Buyer Broker Compensation (% of price)</label><input id="brokerPct" type="number" inputmode="decimal" value="${DEFAULTS.brokerPct}"></div>
+          </div>
+
+          <div class="actions">
+            <button class="compute" onclick="calc()">Compute</button>
+            <button class="reset" onclick="resetCalc()">Reset</button>
+          </div>
+
+          <div class="disclaimer">
+            Disclaimer: This calculator provides estimates only and is for informational purposes. Results may vary based on loan program, credit profile, property details, taxes, insurance, and lender or third-party requirements. Estimated closing costs are calculated at an average of 2.5% of the purchase price and may include lender fees, title and escrow fees, and prepaid items. All users should consult a qualified mortgage professional for accurate figures and loan eligibility.
+          </div>
+        </div>
+
+        <div>
+          <div class="results">
+
+            <div class="resultCard">
+              <div class="resultTitle">Monthly Payment</div>
+              <canvas id="donutMonthly" width="160" height="160"></canvas>
+              <div class="bigNum" id="monthlyTotal">$0</div>
+              <div class="legend" id="monthlyLegend"></div>
+            </div>
+
+            <div class="resultCard">
+              <div class="resultTitle">Bring to Close</div>
+              <canvas id="donutClose" width="160" height="160"></canvas>
+              <div class="bigNum" id="closeTotal">$0</div>
+              <div class="legend" id="closeLegend"></div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>`;
+
+  const priceEl=document.getElementById("price"),
+        downPctEl=document.getElementById("downPct"),
+        rateEl=document.getElementById("rate"),
+        termEl=document.getElementById("term"),
+        taxesEl=document.getElementById("taxes"),
+        insuranceEl=document.getElementById("insurance"),
+        hoaEl=document.getElementById("hoa"),
+        concessionsPctEl=document.getElementById("concessionsPct"),
+        brokerPctEl=document.getElementById("brokerPct");
+
+  function money0(n){
+    return (n||0).toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0});
+  }
+
+  function legendRow(color, label, valueText){
+    return `
+      <div class="legend-item">
+        <div class="legend-left">
+          <span class="legend-color" style="background:${color}"></span>
+          <span class="legend-label">${label}</span>
+        </div>
+        <span class="legend-val">${valueText}</span>
+      </div>`;
+  }
+
+  /* Currency input helpers (display: $ with commas, no cents) */
+  function parseCurrency(str){
+    if(typeof str!=="string") str=String(str||"");
+    const digits=str.replace(/[^\d]/g,"");
+    return digits ? parseInt(digits,10) : 0;
+  }
+  function formatCurrencyInput(el, val){
+    el.value = money0(val);
+  }
+  function bindCurrencyInput(el, defaultVal){
+    formatCurrencyInput(el, defaultVal);
+    el.addEventListener("focus", function(){
+      // show raw number on focus for easier editing
+      const v=parseCurrency(el.value);
+      el.value = v ? String(v) : "";
+    });
+    el.addEventListener("blur", function(){
+      const v=parseCurrency(el.value);
+      formatCurrencyInput(el, v);
+    });
+    el.addEventListener("input", function(){
+      // keep only digits while typing
+      el.value = el.value.replace(/[^\d]/g,"");
+    });
+  }
+
+  bindCurrencyInput(priceEl, DEFAULTS.price);
+  bindCurrencyInput(taxesEl, DEFAULTS.taxes);
+  bindCurrencyInput(insuranceEl, DEFAULTS.insurance);
+  bindCurrencyInput(hoaEl, DEFAULTS.hoa);
+
+  /* ✅ Prevent stretched/oval donuts by syncing internal pixels to CSS size */
+  function syncCanvasSize(c){
+    const rect=c.getBoundingClientRect();
+    const dpr=window.devicePixelRatio||1;
+    const size=Math.round(Math.min(rect.width,rect.height));
+    c.width=Math.round(size*dpr);
+    c.height=Math.round(size*dpr);
+  }
+
+  function drawDonut(c, slices){
+    const ctx=c.getContext("2d");
+    const w=c.width, h=c.height;
+    ctx.clearRect(0,0,w,h);
+
+    const total=slices.reduce((a,s)=>a+(s.value>0?s.value:0),0);
+    const cx=w/2, cy=h/2;
+    const radius=Math.min(w,h)*0.40;
+    const lineW=Math.min(w,h)*0.10;
+
+    if(total<=0){
+      ctx.beginPath();
+      ctx.arc(cx,cy,radius,0,Math.PI*2);
+      ctx.strokeStyle="#e5e7eb";
+      ctx.lineWidth=lineW;
+      ctx.stroke();
+      return;
+    }
+
+    let angle=-Math.PI/2;
+    slices.forEach(s=>{
+      if(!(s.value>0)) return;
+      const slice=(s.value/total)*Math.PI*2;
+      ctx.beginPath();
+      ctx.arc(cx,cy,radius,angle,angle+slice);
+      ctx.strokeStyle=s.color;
+      ctx.lineWidth=lineW;
+      ctx.lineCap="butt";
+      ctx.stroke();
+      angle+=slice;
+    });
+  }
+
+  window.calc=function(){
+    const price=parseCurrency(priceEl.value);
+    const downPct=(+downPctEl.value||0)/100;
+    const loan=price*(1-downPct);
+    const monthlyRate=((+rateEl.value||0)/100)/12;
+    const months=(+termEl.value||0)*12;
+
+    let pi=0;
+    if(monthlyRate>0 && months>0 && loan>0){
+      pi=loan*(monthlyRate*Math.pow(1+monthlyRate,months))/(Math.pow(1+monthlyRate,months)-1);
+    }else if(months>0 && loan>0){
+      pi=loan/months;
+    }
+
+    const taxM=parseCurrency(taxesEl.value)/12;
+    const insM=parseCurrency(insuranceEl.value)/12;
+    const hoaM=parseCurrency(hoaEl.value);
+
+    /* PMI rule: 0 if >=20% down, else 0.55% annual */
+    const pmi = downPct < 0.20 ? (loan*0.0055/12) : 0;
+
+    const monthlyTotalVal=pi+taxM+insM+hoaM+pmi;
+
+    const closingCost=price*0.025;
+    const down=price*downPct;
+    const broker=price*((+brokerPctEl.value||0)/100);
+    const concessions=price*((+concessionsPctEl.value||0)/100);
+
+    const cashToClose=Math.max(0,down+closingCost+broker-concessions);
+
+    document.getElementById("monthlyTotal").innerHTML=money0(monthlyTotalVal);
+    document.getElementById("closeTotal").innerHTML=money0(cashToClose);
+
+    const donutMonthly=document.getElementById("donutMonthly");
+    const donutClose=document.getElementById("donutClose");
+
+    syncCanvasSize(donutMonthly);
+    syncCanvasSize(donutClose);
+
+    const monthlySlices=[
+      {label:"Principal & Interest", value:pi, color:MONTHLY_COLORS.pi},
+      {label:"Property Taxes", value:taxM, color:MONTHLY_COLORS.taxes},
+      {label:"Hazard Insurance", value:insM, color:MONTHLY_COLORS.insurance},
+      {label:"PMI", value:pmi, color:MONTHLY_COLORS.pmi},
+      {label:"HOA", value:hoaM, color:MONTHLY_COLORS.hoa}
+    ];
+
+    const closeSlices=[
+      {label:"Down Payment", value:down, color:CLOSE_COLORS.down},
+      {label:"Closing Costs (2.5%)", value:closingCost, color:CLOSE_COLORS.closing},
+      {label:"Broker Compensation", value:broker, color:CLOSE_COLORS.broker}
+    ];
+
+    drawDonut(donutMonthly, monthlySlices);
+    drawDonut(donutClose, closeSlices);
+
+    document.getElementById("monthlyLegend").innerHTML =
+      legendRow(MONTHLY_COLORS.pi,"Principal & Interest",money0(pi)) +
+      legendRow(MONTHLY_COLORS.taxes,"Property Taxes",money0(taxM)) +
+      legendRow(MONTHLY_COLORS.insurance,"Hazard Insurance",money0(insM)) +
+      legendRow(MONTHLY_COLORS.pmi,"PMI",money0(pmi)) +
+      legendRow(MONTHLY_COLORS.hoa,"HOA",money0(hoaM));
+
+    document.getElementById("closeLegend").innerHTML =
+      legendRow(CLOSE_COLORS.down,"Down Payment",money0(down)) +
+      legendRow(CLOSE_COLORS.closing,"Closing Costs (2.5%)",money0(closingCost)) +
+      legendRow(CLOSE_COLORS.broker,"Broker Compensation",money0(broker)) +
+      legendRow(CLOSE_COLORS.concessions,"Seller Concessions","-" + money0(concessions));
+  };
+
+  window.resetCalc=function(){
+    downPctEl.value = DEFAULTS.downPct;
+    rateEl.value = DEFAULTS.rate;
+    termEl.value = String(DEFAULTS.term);
+    concessionsPctEl.value = DEFAULTS.concessionsPct;
+    brokerPctEl.value = DEFAULTS.brokerPct;
+
+    formatCurrencyInput(priceEl, DEFAULTS.price);
+    formatCurrencyInput(taxesEl, DEFAULTS.taxes);
+    formatCurrencyInput(insuranceEl, DEFAULTS.insurance);
+    formatCurrencyInput(hoaEl, DEFAULTS.hoa);
+
+    document.getElementById("monthlyTotal").innerHTML="$0";
+    document.getElementById("closeTotal").innerHTML="$0";
+    document.getElementById("monthlyLegend").innerHTML="";
+    document.getElementById("closeLegend").innerHTML="";
+
+    const donutMonthly=document.getElementById("donutMonthly");
+    const donutClose=document.getElementById("donutClose");
+    syncCanvasSize(donutMonthly);
+    syncCanvasSize(donutClose);
+    drawDonut(donutMonthly,[{value:0,color:"#e5e7eb"}]);
+    drawDonut(donutClose,[{value:0,color:"#e5e7eb"}]);
+  };
+
+  window.addEventListener("resize", function(){
+    const donutMonthly=document.getElementById("donutMonthly");
+    const donutClose=document.getElementById("donutClose");
+    if(!donutMonthly || !donutClose) return;
+    syncCanvasSize(donutMonthly);
+    syncCanvasSize(donutClose);
+  });
+
+})();
+</script>
