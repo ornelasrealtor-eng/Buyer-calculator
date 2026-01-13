@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Payment + Closing Cost Estimator</title>
+  <style>
+    :root { color-scheme: light; }
+    body{margin:0;padding:0;background:#f6f7f9}
+    #kvc-pay-close-estimator{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:980px;margin:0 auto;padding:16px;line-height:1.35}
+    .kvc-card{border:1px solid rgba(0,0,0,.12);border-radius:14px;box-shadow:0 10px 24px rgba(0,0,0,.06);background:#fff;overflow:hidden}
+    .kvc-head{padding:18px 18px 12px;border-bottom:1px solid rgba(0,0,0,.08);background:linear-gradient(180deg,rgba(0,0,0,.03),transparent)}
+    .kvc-title{margin:0 0 6px;font-size:20px}
+    .kvc-sub{margin:0;font-size:13px;opacity:.8}
+    .kvc-body{padding:16px 18px 18px;display:grid;grid-template-columns:1.05fr .95fr;gap:16px}
+    @media(max-width:880px){.kvc-body{grid-template-columns:1fr}}
+    .kvc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media(max-width:560px){.kvc-grid{grid-template-columns:1fr}}
+    .kvc-field{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid rgba(0,0,0,.08);border-radius:12px;background:rgba(0,0,0,.015)}
+    .kvc-label{font-size:12px;opacity:.85}
+    .kvc-inputrow{display:flex;align-items:center;gap:8px}
+    .kvc-prefix{padding:10px 10px;border:1px solid rgba(0,0,0,.14);border-radius:10px;background:#fff;font-size:14px;opacity:.8;min-width:30px;text-align:center}
+    .kvc-input,.kvc-select{width:100%;padding:10px 10px;border:1px solid rgba(0,0,0,.14);border-radius:10px;background:#fff;font-size:14px;outline:none}
+    .kvc-input:focus,.kvc-select:focus{border-color:rgba(0,0,0,.35);box-shadow:0 0 0 3px rgba(0,0,0,.08)}
+    .kvc-hint{font-size:11px;opacity:.75}
+    .kvc-results{border:1px solid rgba(0,0,0,.10);border-radius:14px;background:rgba(0,0,0,.02);padding:14px;display:flex;flex-direction:column;gap:10px}
+    .kvc-big{padding:14px;border-radius:14px;background:#fff;border:1px solid rgba(0,0,0,.10)}
+    .kvc-big h3{margin:0 0 6px;font-size:13px;opacity:.75;font-weight:600}
+    .kvc-amount{font-size:32px;font-weight:750}
+    .kvc-mini{font-size:12px;opacity:.75;margin-top:6px}
+    .kvc-breakdown{border-top:1px solid rgba(0,0,0,.10);padding-top:10px;display:grid;gap:6px}
+    .kvc-row{display:flex;justify-content:space-between;gap:10px;font-size:13px}
+    .kvc-row span:first-child{opacity:.8}
+    .kvc-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+    .kvc-btn{appearance:none;border:1px solid rgba(0,0,0,.18);background:#fff;border-radius:12px;padding:10px 12px;font-weight:650;cursor:pointer;font-size:13px}
+    .kvc-btn:hover{background:rgba(0,0,0,.03)}
+    .kvc-disclaimer{margin-top:10px;font-size:11px;opacity:.75}
+  </style>
+</head>
+
+<body>
+  <section id="kvc-pay-close-estimator" aria-label="Payment and Closing Cost Estimator">
+    <div class="kvc-card">
+      <div class="kvc-head">
+        <h2 class="kvc-title">Payment + Closing Cost Estimator</h2>
+        <p class="kvc-sub">Down payment is % only. PMI automatically applies when down payment is under 20%.</p>
+      </div>
+
+      <div class="kvc-body">
+        <!-- Inputs -->
+        <div>
+          <div class="kvc-grid" role="group" aria-label="Calculator Inputs">
+            <div class="kvc-field">
+              <div class="kvc-label">Home Price</div>
+              <div class="kvc-inputrow">
+                <div class="kvc-prefix">$</div>
+                <input class="kvc-input" id="price" type="number" min="0" step="1000" value="385000">
+              </div>
+              <div class="kvc-hint">Purchase price of the property.</div>
+            </div>
+
+            <div class="kvc-field">
+              <div class="kvc-label">Down Payment (%)</div>
+              <div class="kvc-inputrow">
+                <div class="kvc-prefix">%</div>
+                <input class="kvc-input" id="downPct" type="number" min="0" max="100" step="0.01" value="20">
+              </div>
+              <div class="kvc-hint">PMI auto-calculates if under 20% down.</div>
+            </div>
+
+            <div class="kvc-field">
+              <div class="kvc-label">Interest Rate (APR)</div>
+              <div class="kvc-inputrow">
+                <div class="kvc-prefix">%</div>
+                <input class="kvc-input" id="rate" type="number" min="0" max="30" step="0.01" value="6.75">
+              </div>
+              <div class="kvc-hint">Example only. Final rate set by lender.</div>
+            </div>
+
+            <div class="kvc-field">
+              <div class="kvc-label">Loan Term</div>
+              <select class="kvc-select" id="term">
+                <option value="30" selected>30 years</option>
+                <option value="20">20 years</option>
+                <option value="15">15 years</option>
+                <option value="10">10 years</option>
+              </select>
+              <div class="kvc-hint">Fixed-rate assumption.</div>
+            </div>
+
+            <div class="kvc-field">
+              <div class="kvc-label">Annual Property Taxes</div>
+              <div class="kvc-inputrow">
+                <div class="kvc-prefix">$</div>
+                <input class="kvc-input" id="taxesAnnual" type="number" min="0" step="100" value="2400">
+              </div>
+              <div class="kvc-hint">Estimated yearly total.</div>
+            </div>
+
+            <div class="kvc-field">
+              <div class="kvc-label">Annual Homeowners Insurance</div>
+              <div class="kvc-inputrow">
+                <div class="kvc-prefix">$</div>
+                <input class="kvc-input" id="insAnnual" type="number" min="0" step="100" value="1200">
+              </div>
+              <div class="kvc-hint">Estimated yearly premium.</div>
+            </div>
+
+            <div class="kvc-field">
+              <div class="kvc-label">Monthly HOA (optional)</div>
+              <div class="kvc-inputrow">
+                <div class="kvc-prefix">$</div>
+                <input class="kvc-input" id="hoaMonthly" type="number" min="0" step="10" value="0">
+              </div>
+              <div class="kvc-hint">If applicable.</div>
+            </div>
+
+            <div class="kvc-field">
+              <div class="kvc-label">PMI Rate (annual, when &lt; 20% down)</div>
+              <div class="kvc-inputrow">
+                <div class="kvc-prefix">%</div>
+                <input class="kvc-input" id="pmiRate" type="number" min="0" max="5" step="0.01" value="0.80">
+              </div>
+              <div class="kvc-hint">Typical PMI varies. This is a default assumption.</div>
+            </div>
+
+            <div class="kvc-field">
+              <div class="kvc-label">Estimated Closing Costs (%)</div>
+              <div class="kvc-inputrow">
+                <div class="kvc-prefix">%</div>
+                <input class="kvc-input" id="closePct" type="number" min="0" max="15" step="0.01" value="3.00">
+              </div>
+              <div class="kvc-hint">Rule-of-thumb estimate. Adjust as needed.</div>
+            </div>
+
+            <div class="kvc-field">
+              <div class="kvc-label">Seller Concessions (optional)</div>
+              <div class="kvc-inputrow">
+                <div class="kvc-prefix">$</div>
+                <input class="kvc-input" id="concessions" type="number" min="0" step="100" value="0">
+              </div>
+              <div class="kvc-hint">Credits applied toward closing costs.</div>
+            </div>
+          </div>
+
+          <div class="kvc-actions">
+            <button class="kvc-btn" id="resetBtn" type="button">Reset</button>
+          </div>
+
+          <div class="kvc-disclaimer">
+            <strong>Disclaimer:</strong> Estimates are for comparison only. Taxes, insurance, PMI, HOA, rates, and closing costs vary by loan program and property. Confirm final figures with your lender and title company.
+          </div>
+        </div>
+
+        <!-- Results -->
+        <aside class="kvc-results" aria-live="polite" aria-label="Calculator Results">
+          <div class="kvc-big">
+            <h3>Estimated Total Monthly Payment</h3>
+            <div class="kvc-amount" id="monthlyTotal">$0</div>
+            <div class="kvc-mini" id="loanMeta">Loan Amount: $0 · Down Payment: $0</div>
+          </div>
+
+          <div class="kvc-breakdown">
+            <div class="kvc-row"><span>Principal + Interest</span><strong id="piOut">$0</strong></div>
+            <div class="kvc-row"><span>Taxes (monthly)</span><strong id="taxOut">$0</strong></div>
+            <div class="kvc-row"><span>Insurance (monthly)</span><strong id="insOut">$0</strong></div>
+            <div class="kvc-row"><span>PMI (monthly)</span><strong id="pmiOut">$0</strong></div>
+            <div class="kvc-row"><span>HOA (monthly)</span><strong id="hoaOut">$0</strong></div>
+          </div>
+
+          <div class="kvc-big">
+            <h3>Estimated Cash To Close</h3>
+            <div class="kvc-amount" style="font-size:28px" id="cashToClose">$0</div>
+            <div class="kvc-mini" id="closeMeta">Closing Costs Estimate: $0</div>
+          </div>
+
+          <div class="kvc-breakdown">
+            <div class="kvc-row"><span>Down Payment</span><strong id="dpOut">$0</strong></div>
+            <div class="kvc-row"><span>Estimated Closing Costs</span><strong id="ccOut">$0</strong></div>
+            <div class="kvc-row"><span>Minus Seller Concessions</span><strong id="scOut">-$0</strong></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    (function(){
+      function $(id){ return document.getElementById(id); }
+      const fmt = new Intl.NumberFormat(undefined,{style:"currency",currency:"USD",maximumFractionDigits:0});
+      const toNum = (v)=> {
+        const n = parseFloat(String(v ?? "").replace(/[^0-9.]/g,""));
+        return Number.isFinite(n) ? n : 0;
+      };
+      const clamp = (n,min,max)=>Math.min(Math.max(n,min),max);
+
+      function monthlyPI(loan, aprPct, years){
+        const r = (aprPct/100)/12;
+        const n = years*12;
+        if (loan<=0 || n<=0) return 0;
+        if (r===0) return loan/n;
+        const pow = Math.pow(1+r,n);
+        return loan*(r*pow)/(pow-1);
+      }
+
+      const price = $("price");
+      const downPct = $("downPct");
+      const rate = $("rate");
+      const term = $("term");
+      const taxesAnnual = $("taxesAnnual");
+      const insAnnual = $("insAnnual");
+      const hoaMonthly = $("hoaMonthly");
+      const pmiRate = $("pmiRate");
+      const closePct = $("closePct");
+      const concessions = $("concessions");
+
+      const monthlyTotal = $("monthlyTotal");
+      const loanMeta = $("loanMeta");
+      const piOut = $("piOut");
+      const taxOut = $("taxOut");
+      const insOut = $("insOut");
+      const pmiOut = $("pmiOut");
+      const hoaOut = $("hoaOut");
+
+      const cashToClose = $("cashToClose");
+      const closeMeta = $("closeMeta");
+      const dpOut = $("dpOut");
+      const ccOut = $("ccOut");
+      const scOut = $("scOut");
+
+      function calc(){
+        const home = Math.max(toNum(price.value), 0);
+        const dpPct = clamp(toNum(downPct.value), 0, 100);
+        const dp = home*(dpPct/100);
+        const loan = Math.max(home - dp, 0);
+
+        const apr = clamp(toNum(rate.value), 0, 30);
+        const years = parseInt(term.value, 10) || 30;
+
+        const monthlyTax = Math.max(toNum(taxesAnnual.value), 0)/12;
+        const monthlyIns = Math.max(toNum(insAnnual.value), 0)/12;
+        const monthlyHoa = Math.max(toNum(hoaMonthly.value), 0);
+
+        // Auto PMI only if down payment < 20%
+        const pmiAnnualRatePct = clamp(toNum(pmiRate.value), 0, 5);
+        const monthlyPmi = (dpPct < 20 && loan > 0)
+          ? (loan * (pmiAnnualRatePct/100)) / 12
+          : 0;
+
+        const pi = monthlyPI(loan, apr, years);
+        const total = pi + monthlyTax + monthlyIns + monthlyHoa + monthlyPmi;
+
+        const ccPct = clamp(toNum(closePct.value), 0, 15);
+        const estClosing = home*(ccPct/100);
+        const sellerCredits = Math.max(toNum(concessions.value), 0);
+        const cash = Math.max(dp + estClosing - sellerCredits, 0);
+
+        monthlyTotal.textContent = fmt.format(total);
+        loanMeta.textContent = "Loan Amount: " + fmt.format(loan) + " · Down Payment: " + fmt.format(dp) + " (" + (Math.round(dpPct*100)/100) + "%)";
+
+        piOut.textContent = fmt.format(pi);
+        taxOut.textContent = fmt.format(monthlyTax);
+        insOut.textContent = fmt.format(monthlyIns);
+        pmiOut.textContent = fmt.format(monthlyPmi);
+        hoaOut.textContent = fmt.format(monthlyHoa);
+
+        cashToClose.textContent = fmt.format(cash);
+        closeMeta.textContent = "Closing Costs Estimate: " + fmt.format(estClosing);
+
+        dpOut.textContent = fmt.format(dp);
+        ccOut.textContent = fmt.format(estClosing);
+        scOut.textContent = "-" + fmt.format(sellerCredits);
+      }
+
+      // Bind events
+      [price, downPct, rate, taxesAnnual, insAnnual, hoaMonthly, pmiRate, closePct, concessions]
+        .forEach(el => el.addEventListener("input", calc));
+      term.addEventListener("change", calc);
+
+      $("resetBtn").addEventListener("click", ()=>{
+        price.value = 385000;
+        downPct.value = 20;
+        rate.value = 6.75;
+        term.value = 30;
+        taxesAnnual.value = 2400;
+        insAnnual.value = 1200;
+        hoaMonthly.value = 0;
+        pmiRate.value = 0.80;
+        closePct.value = 3.00;
+        concessions.value = 0;
+        calc();
+      });
+
+      calc();
+    })();
+  </script>
+</body>
+</html>
